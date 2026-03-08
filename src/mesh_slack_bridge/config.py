@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 @dataclass
 class BridgeConfig:
     # Meshtastic
+    connection_type: str = "serial"  # "serial" or "ble"
     serial_port: str | None = None
+    ble_address: str | None = None  # BLE MAC address or device name; null = auto-detect
     mesh_channel: int = 0
 
     # Slack
@@ -47,6 +49,8 @@ def load_config() -> BridgeConfig:
     config.slack_app_token = os.environ.get("SLACK_APP_TOKEN", "")
 
     # Validation
+    if config.connection_type not in ("serial", "ble"):
+        raise ValueError("connection_type must be 'serial' or 'ble'")
     if not config.slack_bot_token:
         raise ValueError("SLACK_BOT_TOKEN environment variable is required")
     if not config.slack_app_token:

@@ -1,6 +1,8 @@
 # Meshtastic settings
-serial_port: null  # null = auto-detect first Meshtastic device
-mesh_channel: 0    # Meshtastic channel index (0 = primary)
+connection_type: serial  # "serial" (USB) or "ble" (Bluetooth)
+serial_port: null         # For serial: null = auto-detect first device
+ble_address: null         # For ble: MAC address or device name; null = auto-detect
+mesh_channel: 0           # Meshtastic channel index (0 = primary)
 
 # Slack settings
 slack_channel_id: "C07XXXXXX"  # Replace with your Slack channel ID
