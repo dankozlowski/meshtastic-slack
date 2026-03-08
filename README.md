@@ -9,7 +9,7 @@ Messages flow bidirectionally:
 ## Prerequisites
 
 - Python 3.10+
-- A Meshtastic radio connected via USB
+- A Meshtastic radio connected via USB or Bluetooth
 - A Slack workspace you can install apps to
 
 ## Slack App Setup
@@ -54,12 +54,23 @@ SLACK_APP_TOKEN=xapp-your-app-level-token
 Edit `config.yaml` with your Slack channel ID and preferences:
 
 ```yaml
-serial_port: null          # null = auto-detect first Meshtastic device
+connection_type: serial    # "serial" (USB) or "ble" (Bluetooth)
+serial_port: null          # For serial: null = auto-detect first device
+ble_address: null          # For ble: MAC address or device name; null = auto-detect
 mesh_channel: 0            # Meshtastic channel index (0 = primary)
 slack_channel_id: "C07XXXXXX"
 message_prefix: "[Mesh]"
 max_mesh_message_len: 220
 log_level: INFO
+```
+
+### Connecting via Bluetooth
+
+Set `connection_type: ble` in `config.yaml`. You can either let it auto-detect the first BLE Meshtastic device or specify a device directly:
+
+```yaml
+connection_type: ble
+ble_address: "AA:BB:CC:DD:EE:FF"  # MAC address, or a device name, or null to auto-detect
 ```
 
 ## Running
@@ -93,7 +104,7 @@ src/mesh_slack_bridge/
 ├── __main__.py       # Entry point with signal handling and logging
 ├── config.py         # Loads config.yaml + env vars, validates required fields
 ├── bridge.py         # Orchestrator wiring mesh and Slack clients together
-├── mesh_client.py    # Meshtastic serial connection, pubsub, auto-reconnect
+├── mesh_client.py    # Meshtastic connection (serial/BLE), pubsub, auto-reconnect
 ├── slack_client.py   # Slack Bolt Socket Mode app, message handling
 └── formatting.py     # Message transformation and 228-byte mesh truncation
 ```
