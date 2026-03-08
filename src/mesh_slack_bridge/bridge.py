@@ -27,7 +27,7 @@ class Bridge:
             logger.exception("Failed to post to Slack")
 
     def _on_slack_message(self, msg: SlackMessage):
-        logger.info("Slack -> Mesh | %s: %s", msg.user, msg.text)
+        logger.info("Slack -> Mesh | %s", msg.text)
         formatted = slack_to_mesh(msg, self.config)
         try:
             self.mesh.send_text(formatted)

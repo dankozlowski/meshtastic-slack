@@ -19,7 +19,6 @@ class BridgeConfig:
 
     # Message formatting
     message_prefix: str = "[Mesh]"
-    slack_user_format: str = "{user}: {text}"
     max_mesh_message_len: int = 220
 
     # Behavior

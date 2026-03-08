@@ -7,7 +7,6 @@ slack_channel_id: "C07XXXXXX"  # Replace with your Slack channel ID
 
 # Message formatting
 message_prefix: "[Mesh]"
-slack_user_format: "{user}: {text}"
 max_mesh_message_len: 220
 
 # Behavior

@@ -16,7 +16,6 @@ class SlackClient:
     def __init__(self, config: BridgeConfig, on_message: Callable[[SlackMessage], None]):
         self.config = config
         self.on_message = on_message
-        self._user_cache: dict[str, str] = {}
         self._handler: SocketModeHandler | None = None
 
         self.app = App(token=config.slack_bot_token)
@@ -33,31 +32,12 @@ class SlackClient:
             if event.get("bot_id") or event.get("subtype"):
                 return
 
-            user_id = event.get("user", "")
-            if not user_id:
-                return
-
-            display_name = self._get_user_name(client, user_id)
             text = event.get("text", "")
             if not text:
                 return
 
-            msg = SlackMessage(user=display_name, text=text)
+            msg = SlackMessage(text=text)
             self.on_message(msg)
-
-    def _get_user_name(self, client, user_id: str) -> str:
-        if user_id in self._user_cache:
-            return self._user_cache[user_id]
-
-        try:
-            result = client.users_info(user=user_id)
-            profile = result["user"]["profile"]
-            name = profile.get("display_name") or result["user"].get("real_name") or user_id
-            self._user_cache[user_id] = name
-            return name
-        except Exception:
-            logger.exception("Failed to look up Slack user %s", user_id)
-            return user_id
 
     def post_message(self, text: str):
         self.app.client.chat_postMessage(

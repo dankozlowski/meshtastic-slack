@@ -4,7 +4,7 @@ A Python daemon that bridges Meshtastic radio mesh network messages with a Slack
 
 Messages flow bidirectionally:
 - **Mesh → Slack**: Radio messages appear in your Slack channel as `[Mesh] *NodeName*: message`
-- **Slack → Mesh**: Slack messages are sent over the mesh as `UserName: message`
+- **Slack → Mesh**: Slack messages are sent over the mesh as-is (the node's own identity is used)
 
 ## Prerequisites
 
@@ -20,8 +20,6 @@ Create an app at https://api.slack.com/apps:
    - `channels:history` — read messages in public channels
    - `channels:read` — list channels and get channel info
    - `chat:write` — post messages
-   - `users:read` — look up user display names
-
 2. **Event Subscriptions**:
    - Subscribe to `message.channels`
 
@@ -60,7 +58,6 @@ serial_port: null          # null = auto-detect first Meshtastic device
 mesh_channel: 0            # Meshtastic channel index (0 = primary)
 slack_channel_id: "C07XXXXXX"
 message_prefix: "[Mesh]"
-slack_user_format: "{user}: {text}"
 max_mesh_message_len: 220
 log_level: INFO
 ```

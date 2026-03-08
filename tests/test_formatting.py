@@ -33,14 +33,14 @@ def test_mesh_to_slack_custom_prefix():
 
 def test_slack_to_mesh_basic():
     config = make_config()
-    msg = SlackMessage(user="Dan", text="Hey mesh!")
+    msg = SlackMessage(text="Hey mesh!")
     result = slack_to_mesh(msg, config)
-    assert result == "Dan: Hey mesh!"
+    assert result == "Hey mesh!"
 
 
 def test_slack_to_mesh_truncation():
     config = make_config(max_mesh_message_len=20)
-    msg = SlackMessage(user="Dan", text="This is a very long message that exceeds the limit")
+    msg = SlackMessage(text="This is a very long message that exceeds the limit")
     result = slack_to_mesh(msg, config)
     assert len(result.encode("utf-8")) <= 20
     assert result.endswith("...")
@@ -48,7 +48,7 @@ def test_slack_to_mesh_truncation():
 
 def test_slack_to_mesh_exact_fit():
     config = make_config(max_mesh_message_len=220)
-    msg = SlackMessage(user="Dan", text="Short")
+    msg = SlackMessage(text="Short")
     result = slack_to_mesh(msg, config)
-    assert result == "Dan: Short"
+    assert result == "Short"
     assert len(result.encode("utf-8")) <= 220
