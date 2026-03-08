@@ -27,8 +27,18 @@ class Bridge:
             logger.exception("Failed to post to Slack")
 
     def _on_slack_message(self, msg: SlackMessage):
-        logger.info("Slack -> Mesh | %s", msg.text)
         formatted = slack_to_mesh(msg, self.config)
+        if formatted is None:
+            max_len = self.config.max_mesh_message_len
+            logger.warning("Slack -> Mesh | rejected, message exceeds %d bytes", max_len)
+            try:
+                self.slack.post_message(
+                    f"Message not sent — exceeds the {max_len}-byte mesh limit."
+                )
+            except Exception:
+                logger.exception("Failed to post rejection notice to Slack")
+            return
+        logger.info("Slack -> Mesh | %s", formatted)
         try:
             self.mesh.send_text(formatted)
         except Exception:

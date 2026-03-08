@@ -38,12 +38,10 @@ def test_slack_to_mesh_basic():
     assert result == "Hey mesh!"
 
 
-def test_slack_to_mesh_truncation():
+def test_slack_to_mesh_too_long():
     config = make_config(max_mesh_message_len=20)
     msg = SlackMessage(text="This is a very long message that exceeds the limit")
-    result = slack_to_mesh(msg, config)
-    assert len(result.encode("utf-8")) <= 20
-    assert result.endswith("...")
+    assert slack_to_mesh(msg, config) is None
 
 
 def test_slack_to_mesh_exact_fit():
