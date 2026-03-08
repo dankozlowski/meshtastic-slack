@@ -21,6 +21,10 @@ class BridgeConfig:
     message_prefix: str = "[Mesh]"
     max_mesh_message_len: int = 220
 
+    # Rate limiting (seconds between sends)
+    slack_post_interval: float = 1.0
+    mesh_send_interval: float = 2.0
+
     # Behavior
     ignore_own_messages: bool = True
 

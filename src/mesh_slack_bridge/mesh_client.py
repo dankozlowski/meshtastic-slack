@@ -9,6 +9,7 @@ from pubsub import pub
 
 from .config import BridgeConfig
 from .formatting import MeshMessage
+from .queue import RateLimitedQueue
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,10 @@ class MeshClient:
         self.interface = None
         self._my_node_id: str | None = None
         self._closing = False
+
+        self._send_queue = RateLimitedQueue(
+            "mesh-send", self._do_send, config.mesh_send_interval
+        )
 
     def connect(self):
         from meshtastic.serial_interface import SerialInterface
@@ -41,6 +46,8 @@ class MeshClient:
                 # Subscribe to events
                 pub.subscribe(self._on_receive, "meshtastic.receive.text")
                 pub.subscribe(self._on_connection_lost, "meshtastic.connection.lost")
+
+                self._send_queue.start()
                 return
             except Exception:
                 logger.exception("Failed to connect to Meshtastic device, retrying in %ds", backoff)
@@ -82,6 +89,9 @@ class MeshClient:
         threading.Thread(target=self.connect, daemon=True).start()
 
     def send_text(self, text: str):
+        self._send_queue.put(text)
+
+    def _do_send(self, text: str):
         if not self.interface:
             logger.error("Cannot send: not connected to Meshtastic device")
             return
@@ -99,6 +109,7 @@ class MeshClient:
 
     def close(self):
         self._closing = True
+        self._send_queue.stop()
         self._cleanup_subscriptions()
         if self.interface:
             try:
