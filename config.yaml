@@ -9,6 +9,10 @@ slack_channel_id: "C07XXXXXX"  # Replace with your Slack channel ID
 message_prefix: "[Mesh]"
 max_mesh_message_len: 220
 
+# Rate limiting (seconds between sends)
+slack_post_interval: 1.0   # Slack free-tier: ~1 msg/sec
+mesh_send_interval: 2.0    # Meshtastic radio is slow
+
 # Behavior
 ignore_own_messages: true
 
