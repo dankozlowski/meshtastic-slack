@@ -1,0 +1,28 @@
+[Unit]
+Description=Meshtastic-Slack Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/mesh-slack-bridge
+EnvironmentFile=/opt/mesh-slack-bridge/.env
+ExecStart=/opt/mesh-slack-bridge/.venv/bin/python -m mesh_slack_bridge
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/mesh-slack-bridge.log
+
+# USB serial access
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

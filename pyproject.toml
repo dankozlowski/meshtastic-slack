@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mesh-slack-bridge"
+version = "0.1.0"
+description = "Bridge between Meshtastic radio mesh network and Slack"
+requires-python = ">=3.10"
+dependencies = [
+    "meshtastic>=2.7.0",
+    "slack-bolt>=1.18.0",
+    "slack-sdk>=3.27.0",
+    "pyyaml>=6.0",
+    "pypubsub>=4.0.3",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.0",
+]
+
+[project.scripts]
+mesh-slack-bridge = "mesh_slack_bridge.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
