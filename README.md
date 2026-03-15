@@ -64,34 +64,91 @@ max_mesh_message_len: 220
 log_level: INFO
 ```
 
-### Connecting via Bluetooth
+### Connecting via Bluetooth (BLE)
 
 Set `connection_type: ble` in `config.yaml`. You can either let it auto-detect the first BLE Meshtastic device or specify a device directly:
 
 ```yaml
 connection_type: ble
-ble_address: "AA:BB:CC:DD:EE:FF"  # MAC address, or a device name, or null to auto-detect
+ble_address: "Meshtastic_a724"  # BLE device name, MAC address, or null to auto-detect
 ```
+
+**Finding your device name:** If you have multiple Meshtastic nodes nearby, you'll need to specify which one to connect to. Use `bluetoothctl` to scan:
+
+```bash
+sudo bluetoothctl
+# then inside bluetoothctl:
+scan on
+# wait 10-15 seconds, look for entries with "Meshtastic" or your node name
+scan off
+devices
+exit
+```
+
+The device name (e.g. `Meshtastic_a724` or `Hig0_a724`) is usually your node's short name plus the last few hex digits of its MAC address. Use this name as `ble_address` in `config.yaml`.
+
+> **Tip:** Using the device name in `ble_address` is more reliable than the MAC address with the `bleak` BLE library used under the hood.
 
 ## Running
 
 ```bash
+pip install -e .
 python -m mesh_slack_bridge
 ```
 
 ## Deploy on Raspberry Pi
 
-1. Copy the project to `/opt/mesh-slack-bridge`
-2. Create the venv and install dependencies as above
-3. Ensure the `pi` user is in the `dialout` group for serial access:
+1. Clone the repo and install:
    ```bash
-   sudo usermod -aG dialout pi
+   git clone <repo-url> ~/meshtastic-slack && cd ~/meshtastic-slack
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -e .
    ```
+
+2. **For USB serial connections**, ensure your user is in the `dialout` group:
+   ```bash
+   sudo usermod -aG dialout $USER
+   ```
+   Log out and back in for the group change to take effect.
+
+3. **For Bluetooth (BLE) connections**:
+
+   a. Ensure Bluetooth is unblocked and powered on:
+   ```bash
+   # Check if Bluetooth is blocked
+   rfkill list
+
+   # If soft blocked, unblock it
+   sudo rfkill unblock bluetooth
+
+   # Power on the adapter
+   sudo bluetoothctl power on
+   ```
+
+   b. Add your user to the `bluetooth` group:
+   ```bash
+   sudo usermod -aG bluetooth $USER
+   ```
+   Log out and back in for the group change to take effect.
+
+   c. Set `connection_type: ble` in `config.yaml` (see [Connecting via Bluetooth](#connecting-via-bluetooth-ble) above for finding your device name).
+
+   d. **Troubleshooting BLE discovery:** The bridge uses the `bleak` library for BLE, which runs its own scan independently from `bluetoothctl`. If `bleak` can't find your device:
+   - Verify the device is advertising by running `meshtastic --ble-scan`
+   - If `bluetoothctl` sees the device but `bleak` does not, try power-cycling the Meshtastic radio and running the bridge immediately
+   - If the device was previously paired via `bluetoothctl`, try removing the pairing so `bleak` can manage the connection itself:
+     ```bash
+     bluetoothctl remove <MAC_ADDRESS>
+     ```
+   - Some Meshtastic radios require pairing with a PIN (default: `123456`). You can check or change this in the Meshtastic app under Bluetooth settings on the radio
+
 4. Install the systemd service:
    ```bash
    sudo cp systemd/mesh-slack-bridge.service /etc/systemd/system/
    sudo systemctl enable --now mesh-slack-bridge
    ```
+
 5. Check status:
    ```bash
    journalctl -u mesh-slack-bridge -f
