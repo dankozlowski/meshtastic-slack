@@ -40,7 +40,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Copy the example env file and fill in your Slack tokens:
+Copy the example env file and fill in your Slack tokens
 
 ```bash
 cp .env.example .env
