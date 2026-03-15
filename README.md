@@ -122,9 +122,14 @@ python -m mesh_slack_bridge
    # If soft blocked, unblock it
    sudo rfkill unblock bluetooth
 
+   # Ensure the bluetooth service is running
+   sudo systemctl start bluetooth
+
    # Power on the adapter
    sudo bluetoothctl power on
    ```
+
+   > **If `power on` fails** with `org.bluez.Error.Failed`: run `rfkill unblock bluetooth` first, then restart the bluetooth service with `sudo systemctl restart bluetooth`. On some Pi models you may also need `sudo hciconfig hci0 up`. Check `dmesg | grep -i bluetooth` for firmware loading errors.
 
    b. Add your user to the `bluetooth` group:
    ```bash
@@ -132,16 +137,34 @@ python -m mesh_slack_bridge
    ```
    Log out and back in for the group change to take effect.
 
-   c. Set `connection_type: ble` in `config.yaml` (see [Connecting via Bluetooth](#connecting-via-bluetooth-ble) above for finding your device name).
+   c. **Pair the device** (required for radios with PIN pairing enabled):
+   ```bash
+   sudo bluetoothctl
+   # then inside bluetoothctl:
+   scan on
+   # wait for your Meshtastic device to appear
+   scan off
+   pair <MAC_ADDRESS>
+   # enter PIN when prompted (default: 123456)
+   trust <MAC_ADDRESS>
+   exit
+   ```
 
-   d. **Troubleshooting BLE discovery:** The bridge uses the `bleak` library for BLE, which runs its own scan independently from `bluetoothctl`. If `bleak` can't find your device:
+   d. Set `connection_type: ble` in `config.yaml` (see [Connecting via Bluetooth](#connecting-via-bluetooth-ble) above for finding your device name).
+
+   e. **Troubleshooting BLE connections:**
+
+   **"Error writing BLE" / PIN pairing errors:** The Meshtastic radio likely requires PIN pairing. Follow step (c) above to pair and trust the device first. You can check or change the PIN in the Meshtastic app under Bluetooth settings on the radio (default: `123456`).
+
+   **Device not found / discovery failures:** The bridge uses the `bleak` library for BLE, which runs its own scan independently from `bluetoothctl`. If `bleak` can't find your device:
    - Verify the device is advertising by running `meshtastic --ble-scan`
    - If `bluetoothctl` sees the device but `bleak` does not, try power-cycling the Meshtastic radio and running the bridge immediately
-   - If the device was previously paired via `bluetoothctl`, try removing the pairing so `bleak` can manage the connection itself:
+   - If the device was previously paired via `bluetoothctl` and you're getting connection errors, try removing the pairing so `bleak` can manage the connection itself:
      ```bash
      bluetoothctl remove <MAC_ADDRESS>
      ```
-   - Some Meshtastic radios require pairing with a PIN (default: `123456`). You can check or change this in the Meshtastic app under Bluetooth settings on the radio
+
+   **Connection fails intermittently:** A failed BLE connection can leave the adapter in a bad state. The bridge will automatically clean up stale connections between retries, but if problems persist, try restarting the bluetooth service: `sudo systemctl restart bluetooth`
 
 4. Install the systemd service:
    ```bash

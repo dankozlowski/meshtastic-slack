@@ -45,8 +45,10 @@ class MeshClient:
     def connect(self):
         backoff = 1
         while not self._closing:
+            iface = None
             try:
-                self.interface = self._create_interface()
+                iface = self._create_interface()
+                self.interface = iface
                 self._my_node_id = str(self.interface.myInfo.my_node_num)
                 logger.info("Connected to Meshtastic device (node %s)", self._my_node_id)
                 backoff = 1  # reset on success
@@ -57,6 +59,14 @@ class MeshClient:
                 return
             except Exception:
                 logger.exception("Failed to connect to Meshtastic device, retrying in %ds", backoff)
+                # Clean up any partially-constructed interface so the
+                # adapter is released before the next attempt.
+                self.interface = None
+                if iface:
+                    try:
+                        iface.close()
+                    except Exception:
+                        logger.debug("Error closing interface during cleanup", exc_info=True)
                 time.sleep(backoff)
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
