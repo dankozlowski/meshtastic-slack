@@ -24,7 +24,6 @@ Create an app at https://api.slack.com/apps:
 2. **Event Subscriptions**:
    - Subscribe to `message.channels` (public channels)
    - For **private channels**, also subscribe to `message.groups`
-
 3. **Socket Mode**:
    - Enable Socket Mode
    - Generate an app-level token with the `connections:write` scope
@@ -197,3 +196,9 @@ src/mesh_slack_bridge/
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
+
+## AI usage
+
+As of 2026-03-15, this project was put together heavily leveraging Claude Code, so please forgive any trash code.  If you see some bad AI implementations, please raise them in issues, and I'll do my best to replace those with better code.  
+
+AI-assisted PRs are welcome, but should follow best-practices.
