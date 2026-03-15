@@ -34,6 +34,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
+    logger = logging.getLogger("mesh_slack_bridge")
     logger.info("Starting Meshtastic-Slack Bridge")
     bridge.run()
 

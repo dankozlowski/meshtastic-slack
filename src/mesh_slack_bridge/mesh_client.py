@@ -23,17 +23,32 @@ class MeshClient:
         self._my_node_id: str | None = None
         self._closing = False
 
-    def connect(self):
-        from meshtastic.serial_interface import SerialInterface
+    def _create_interface(self):
+        if self.config.connection_type == "ble":
+            from meshtastic.ble_interface import BLEInterface
 
+            address = self.config.ble_address
+            logger.info(
+                "Connecting to Meshtastic device via BLE (address=%s)...",
+                address or "auto-detect",
+            )
+            return BLEInterface(address=address)
+        else:
+            from meshtastic.serial_interface import SerialInterface
+
+            logger.info(
+                "Connecting to Meshtastic device via serial (port=%s)...",
+                self.config.serial_port or "auto-detect",
+            )
+            return SerialInterface(devPath=self.config.serial_port)
+
+    def connect(self):
         backoff = 1
         while not self._closing:
+            iface = None
             try:
-                logger.info(
-                    "Connecting to Meshtastic device (port=%s)...",
-                    self.config.serial_port or "auto-detect",
-                )
-                self.interface = SerialInterface(devPath=self.config.serial_port)
+                iface = self._create_interface()
+                self.interface = iface
                 self._my_node_id = str(self.interface.myInfo.my_node_num)
                 logger.info("Connected to Meshtastic device (node %s)", self._my_node_id)
                 backoff = 1  # reset on success
@@ -44,6 +59,14 @@ class MeshClient:
                 return
             except Exception:
                 logger.exception("Failed to connect to Meshtastic device, retrying in %ds", backoff)
+                # Clean up any partially-constructed interface so the
+                # adapter is released before the next attempt.
+                self.interface = None
+                if iface:
+                    try:
+                        iface.close()
+                    except Exception:
+                        logger.debug("Error closing interface during cleanup", exc_info=True)
                 time.sleep(backoff)
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
