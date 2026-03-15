@@ -20,8 +20,10 @@ Create an app at https://api.slack.com/apps:
    - `channels:history` — read messages in public channels
    - `channels:read` — list channels and get channel info
    - `chat:write` — post messages
+   - For **private channels**, also add: `groups:history` and `groups:read`
 2. **Event Subscriptions**:
-   - Subscribe to `message.channels`
+   - Subscribe to `message.channels` (public channels)
+   - For **private channels**, also subscribe to `message.groups`
 
 3. **Socket Mode**:
    - Enable Socket Mode
