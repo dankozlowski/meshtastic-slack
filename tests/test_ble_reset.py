@@ -28,11 +28,13 @@ class TestResetAndPairWithAddress:
         commands = [c.args[0] for c in mock_run.call_args_list]
         assert commands == [
             ["bluetoothctl", "remove", "AA:BB:CC:DD:EE:FF"],
+            ["bluetoothctl", "power", "off"],
+            ["systemctl", "restart", "bluetooth"],
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
             ["bluetoothctl", "--timeout", "10", "scan", "le"],
         ]
-        mock_sleep.assert_called_once_with(2)
+        assert mock_sleep.call_args_list == [call(3), call(2)]
         mock_pair.assert_called_once_with("AA:BB:CC:DD:EE:FF", "123456")
 
     @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
@@ -67,6 +69,8 @@ class TestResetAndPairAutoDetect:
 
         commands = [c.args[0] for c in mock_run.call_args_list]
         assert commands == [
+            ["bluetoothctl", "power", "off"],
+            ["systemctl", "restart", "bluetooth"],
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
             ["bluetoothctl", "--timeout", "10", "scan", "le"],

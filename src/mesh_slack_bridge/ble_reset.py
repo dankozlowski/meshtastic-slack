@@ -19,20 +19,31 @@ def reset_and_pair(ble_address: str | None, ble_pin: str = "123456") -> None:
     if ble_address:
         _run_step("remove pairing", ["bluetoothctl", "remove", ble_address], timeout=10)
 
-    # Step 2: Reset adapter (fatal if this fails)
+    # Step 2: Power off adapter
+    _run_step("power off", ["bluetoothctl", "power", "off"], timeout=10)
+
+    # Step 3: Restart bluetooth service to fully clear adapter state
+    _run_step(
+        "restart bluetooth service",
+        ["systemctl", "restart", "bluetooth"],
+        timeout=15,
+    )
+    time.sleep(3)
+
+    # Step 4: Reset adapter (fatal if this fails)
     result = _run_step(
         "adapter reset", ["hciconfig", "hci0", "reset"], timeout=10, fatal=True
     )
     if result is None:
         raise RuntimeError("BLE adapter reset failed")
 
-    # Step 3: Wait for D-Bus to reinitialize
+    # Step 5: Wait for D-Bus to reinitialize
     time.sleep(2)
 
-    # Step 4: Power on
+    # Step 6: Power on
     _run_step("power on", ["bluetoothctl", "power", "on"], timeout=10)
 
-    # Step 5: BLE scan (le transport for Meshtastic devices)
+    # Step 7: BLE scan (le transport for Meshtastic devices)
     _run_step("scan", ["bluetoothctl", "--timeout", "10", "scan", "le"], timeout=15)
 
     # Step 6: Pair with PIN and trust (skip if no address)
