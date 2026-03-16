@@ -59,6 +59,8 @@ Edit `config.yaml` with your Slack channel ID and preferences:
 connection_type: serial    # "serial" (USB) or "ble" (Bluetooth)
 serial_port: null          # For serial: null = auto-detect first device
 ble_address: null          # For ble: MAC address or device name; null = auto-detect
+ble_reset_on_connect: false # Reset BLE adapter and re-pair at startup
+ble_pin: "123456"          # PIN for BLE pairing (Meshtastic default: 123456)
 mesh_channel: 0            # Meshtastic channel index (0 = primary)
 slack_channel_id: "C07XXXXXX"
 message_prefix: "[Mesh]"
@@ -154,9 +156,38 @@ python -m mesh_slack_bridge
 
    d. Set `connection_type: ble` in `config.yaml` (see [Connecting via Bluetooth](#connecting-via-bluetooth-ble) above for finding your device name).
 
-   e. **Troubleshooting BLE connections:**
+   e. **Automatic BLE reset on startup:**
 
-   **"Error writing BLE" / PIN pairing errors:** The Meshtastic radio likely requires PIN pairing. Follow step (c) above to pair and trust the device first. You can check or change the PIN in the Meshtastic app under Bluetooth settings on the radio (default: `123456`).
+   BLE connections on Raspberry Pi are often unreliable at startup. The bridge can automatically reset the Bluetooth adapter, scan for BLE devices, and re-pair with your device (including PIN entry) before connecting. Enable this with:
+
+   ```yaml
+   connection_type: ble
+   ble_address: "10:51:DB:57:A7:25"  # Your device MAC address
+   ble_reset_on_connect: true
+   ble_pin: "123456"                 # Meshtastic default PIN
+   ```
+
+   When enabled, the bridge runs this sequence once at startup:
+   1. Remove existing pairing (`bluetoothctl remove <address>`)
+   2. Reset the adapter (`hciconfig hci0 reset`)
+   3. Wait for D-Bus to reinitialize
+   4. Power on (`bluetoothctl power on`)
+   5. BLE scan (`bluetoothctl scan le` — note: `le` not `on`, since Meshtastic uses BLE)
+   6. Pair with PIN and trust (scripted `bluetoothctl` session with agent and PIN auto-entry)
+
+   **Requirements for BLE reset:**
+   - Must run as root (`sudo`) or with `CAP_NET_ADMIN` — `hciconfig reset` requires elevated privileges
+   - `bluetoothctl` and `hciconfig` must be installed (standard on Raspberry Pi OS)
+   - When running with sudo, use the full venv path: `sudo .venv/bin/python -m mesh_slack_bridge`
+   - When `ble_address` is `null` (auto-detect), only the adapter reset and scan are performed — pairing is left to the Meshtastic library
+
+   > **Note:** `hciconfig` is deprecated on newer BlueZ versions (5.50+). If you're on Raspberry Pi OS Bookworm or later and `hciconfig` is not available, you may need to install `bluez-deprecated` or use `btmgmt` manually.
+
+   f. **Troubleshooting BLE connections:**
+
+   **"Error writing BLE" / PIN pairing errors:** The Meshtastic radio requires PIN pairing. Either enable `ble_reset_on_connect: true` with the correct `ble_pin` in config, or pair manually using step (c) above. You can check or change the PIN in the Meshtastic app under Bluetooth settings on the radio (default: `123456`).
+
+   **`[org.bluez.Error.NotPermitted] Not paired`:** The device needs to be paired with a PIN before BLE communication works. Set `ble_reset_on_connect: true` and `ble_pin` in your config to automate this at startup.
 
    **Device not found / discovery failures:** The bridge uses the `bleak` library for BLE, which runs its own scan independently from `bluetoothctl`. If `bleak` can't find your device:
    - Verify the device is advertising by running `meshtastic --ble-scan`
@@ -165,8 +196,11 @@ python -m mesh_slack_bridge
      ```bash
      bluetoothctl remove <MAC_ADDRESS>
      ```
+   - Make sure you're scanning for BLE devices specifically — `bluetoothctl scan le` (not `scan on`, which only finds classic Bluetooth devices)
 
-   **Connection fails intermittently:** A failed BLE connection can leave the adapter in a bad state. The bridge will automatically clean up stale connections between retries, but if problems persist, try restarting the bluetooth service: `sudo systemctl restart bluetooth`
+   **Connection fails intermittently:** A failed BLE connection can leave the adapter in a bad state. The bridge will automatically clean up stale connections between retries, but if problems persist, try restarting the bluetooth service: `sudo systemctl restart bluetooth`. You can also enable `ble_reset_on_connect: true` to automate adapter recovery at startup.
+
+   **"Operation not permitted" from hciconfig:** You need to run with elevated privileges. Either use `sudo .venv/bin/python -m mesh_slack_bridge` or grant the capability: `sudo setcap cap_net_admin+ep $(readlink -f .venv/bin/python)`
 
 4. Install the systemd service:
    ```bash
@@ -186,6 +220,7 @@ src/mesh_slack_bridge/
 ├── __main__.py       # Entry point with signal handling and logging
 ├── config.py         # Loads config.yaml + env vars, validates required fields
 ├── bridge.py         # Orchestrator wiring mesh and Slack clients together
+├── ble_reset.py      # BLE adapter reset and re-pair sequence (optional, startup only)
 ├── mesh_client.py    # Meshtastic connection (serial/BLE), pubsub, auto-reconnect
 ├── slack_client.py   # Slack Bolt Socket Mode app, message handling
 └── formatting.py     # Message transformation and 228-byte mesh truncation

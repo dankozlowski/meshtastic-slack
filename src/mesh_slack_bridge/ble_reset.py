@@ -7,7 +7,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-def reset_and_pair(ble_address: str | None) -> None:
+def reset_and_pair(ble_address: str | None, ble_pin: str = "123456") -> None:
     """Reset the BLE adapter and optionally re-pair with a device.
 
     Runs once at startup to work around flaky BLE on Raspberry Pi.
@@ -35,13 +35,24 @@ def reset_and_pair(ble_address: str | None) -> None:
     # Step 5: BLE scan (le transport for Meshtastic devices)
     _run_step("scan", ["bluetoothctl", "--timeout", "10", "scan", "le"], timeout=15)
 
-    # Step 6: Pair (skip if no address)
+    # Step 6: Pair with PIN (skip if no address)
+    # bluetoothctl pair prompts for a PIN interactively, so we script
+    # the full session: set the agent, pair, supply the PIN, then trust.
     if ble_address:
-        _run_step("pair", ["bluetoothctl", "pair", ble_address], timeout=15)
-
-    # Step 7: Trust (skip if no address)
-    if ble_address:
-        _run_step("trust", ["bluetoothctl", "trust", ble_address], timeout=10)
+        script = (
+            f"agent on\n"
+            f"default-agent\n"
+            f"pair {ble_address}\n"
+            f"{ble_pin}\n"
+            f"trust {ble_address}\n"
+            f"exit\n"
+        )
+        _run_step(
+            "pair and trust",
+            ["bluetoothctl"],
+            timeout=30,
+            stdin_text=script,
+        )
 
     logger.info("BLE adapter reset sequence complete")
 
@@ -52,11 +63,13 @@ def _run_step(
     *,
     timeout: int,
     fatal: bool = False,
+    stdin_text: str | None = None,
 ) -> subprocess.CompletedProcess | None:
     """Run a subprocess step, logging output and handling errors."""
     try:
         result = subprocess.run(
-            cmd, check=False, capture_output=True, text=True, timeout=timeout
+            cmd, check=False, capture_output=True, text=True, timeout=timeout,
+            input=stdin_text,
         )
         logger.debug(
             "BLE reset [%s] rc=%d stdout=%s stderr=%s",
