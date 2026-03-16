@@ -1,5 +1,5 @@
 import subprocess
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -130,3 +130,75 @@ class TestResetAndPairErrorHandling:
 
         with pytest.raises(RuntimeError, match="BLE adapter reset failed"):
             reset_and_pair("AA:BB:CC:DD:EE:FF")
+
+
+class TestBridgeIntegration:
+    """Verify Bridge.run() calls reset_and_pair only when configured."""
+
+    def _make_config(self, **overrides):
+        from mesh_slack_bridge.config import BridgeConfig
+
+        defaults = dict(
+            slack_bot_token="xoxb-test",
+            slack_app_token="xapp-test",
+            slack_channel_id="C123",
+        )
+        defaults.update(overrides)
+        return BridgeConfig(**defaults)
+
+    def _make_bridge(self, config):
+        from mesh_slack_bridge.bridge import Bridge
+
+        with patch("mesh_slack_bridge.bridge.MeshClient"), \
+             patch("mesh_slack_bridge.bridge.SlackClient"):
+            bridge = Bridge(config)
+
+        bridge._stop_event = MagicMock()
+        bridge._stop_event.wait.side_effect = KeyboardInterrupt
+        return bridge
+
+    @patch("mesh_slack_bridge.bridge.reset_and_pair")
+    def test_reset_called_when_ble_and_enabled(self, mock_reset):
+        config = self._make_config(
+            connection_type="ble",
+            ble_address="AA:BB:CC:DD:EE:FF",
+            ble_reset_on_connect=True,
+        )
+        bridge = self._make_bridge(config)
+
+        try:
+            bridge.run()
+        except KeyboardInterrupt:
+            pass
+
+        mock_reset.assert_called_once_with("AA:BB:CC:DD:EE:FF")
+
+    @patch("mesh_slack_bridge.bridge.reset_and_pair")
+    def test_reset_not_called_when_disabled(self, mock_reset):
+        config = self._make_config(
+            connection_type="ble",
+            ble_reset_on_connect=False,
+        )
+        bridge = self._make_bridge(config)
+
+        try:
+            bridge.run()
+        except KeyboardInterrupt:
+            pass
+
+        mock_reset.assert_not_called()
+
+    @patch("mesh_slack_bridge.bridge.reset_and_pair")
+    def test_reset_not_called_when_serial(self, mock_reset):
+        config = self._make_config(
+            connection_type="serial",
+            ble_reset_on_connect=True,
+        )
+        bridge = self._make_bridge(config)
+
+        try:
+            bridge.run()
+        except KeyboardInterrupt:
+            pass
+
+        mock_reset.assert_not_called()
