@@ -30,10 +30,22 @@ class TestResetAndPairWithAddress:
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
             ["bluetoothctl", "--timeout", "10", "scan", "le"],
-            ["bluetoothctl", "pair", "AA:BB:CC:DD:EE:FF"],
-            ["bluetoothctl", "trust", "AA:BB:CC:DD:EE:FF"],
+            ["bluetoothctl"],  # pair+trust scripted session
         ]
         mock_sleep.assert_called_once_with(2)
+
+        # Verify the scripted pair+trust session sends PIN via stdin
+        pair_call = mock_run.call_args_list[4]
+        assert "AA:BB:CC:DD:EE:FF" in pair_call.kwargs["input"]
+        assert "123456" in pair_call.kwargs["input"]
+
+    @patch("mesh_slack_bridge.ble_reset.time.sleep")
+    @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
+    def test_custom_pin(self, mock_run, _mock_sleep):
+        reset_and_pair("AA:BB:CC:DD:EE:FF", ble_pin="999999")
+
+        pair_call = mock_run.call_args_list[4]
+        assert "999999" in pair_call.kwargs["input"]
 
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
@@ -171,7 +183,7 @@ class TestBridgeIntegration:
         except KeyboardInterrupt:
             pass
 
-        mock_reset.assert_called_once_with("AA:BB:CC:DD:EE:FF")
+        mock_reset.assert_called_once_with("AA:BB:CC:DD:EE:FF", "123456")
 
     @patch("mesh_slack_bridge.bridge.reset_and_pair")
     def test_reset_not_called_when_disabled(self, mock_reset):
