@@ -25,6 +25,7 @@ class BridgeConfig:
 
     # Behavior
     ignore_own_messages: bool = True
+    ble_reset_on_connect: bool = False
 
     # Logging
     log_level: str = "INFO"

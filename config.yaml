@@ -2,6 +2,7 @@
 connection_type: serial  # "serial" (USB) or "ble" (Bluetooth)
 serial_port: null         # For serial: null = auto-detect first device
 ble_address: null         # For ble: MAC address or device name; null = auto-detect
+ble_reset_on_connect: false  # Reset BLE adapter and re-pair at startup (requires bluetoothctl, hciconfig)
 mesh_channel: 0           # Meshtastic channel index (0 = primary)
 
 # Slack settings

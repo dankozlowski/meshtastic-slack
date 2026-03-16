@@ -67,3 +67,36 @@ def test_load_config_success(tmp_path):
     assert config.message_prefix == "[Radio]"
     assert config.slack_bot_token == "xoxb-real"
     assert config.slack_app_token == "xapp-real"
+
+
+def test_load_config_ble_reset_default(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text('slack_channel_id: "C123"\n')
+
+    env = {
+        "BRIDGE_CONFIG_PATH": str(config_file),
+        "SLACK_BOT_TOKEN": "xoxb-test",
+        "SLACK_APP_TOKEN": "xapp-test",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        config = load_config()
+
+    assert config.ble_reset_on_connect is False
+
+
+def test_load_config_ble_reset_enabled(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        'slack_channel_id: "C123"\n'
+        "ble_reset_on_connect: true\n"
+    )
+
+    env = {
+        "BRIDGE_CONFIG_PATH": str(config_file),
+        "SLACK_BOT_TOKEN": "xoxb-test",
+        "SLACK_APP_TOKEN": "xapp-test",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        config = load_config()
+
+    assert config.ble_reset_on_connect is True
