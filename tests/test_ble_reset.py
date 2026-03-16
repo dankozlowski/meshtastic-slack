@@ -29,7 +29,7 @@ class TestResetAndPairWithAddress:
             ["bluetoothctl", "remove", "AA:BB:CC:DD:EE:FF"],
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
-            ["bluetoothctl", "--timeout", "10", "scan", "on"],
+            ["bluetoothctl", "--timeout", "10", "scan", "le"],
             ["bluetoothctl", "pair", "AA:BB:CC:DD:EE:FF"],
             ["bluetoothctl", "trust", "AA:BB:CC:DD:EE:FF"],
         ]
@@ -59,7 +59,7 @@ class TestResetAndPairAutoDetect:
         assert commands == [
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
-            ["bluetoothctl", "--timeout", "10", "scan", "on"],
+            ["bluetoothctl", "--timeout", "10", "scan", "le"],
         ]
 
 
