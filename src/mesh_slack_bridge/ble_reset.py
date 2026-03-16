@@ -35,26 +35,64 @@ def reset_and_pair(ble_address: str | None, ble_pin: str = "123456") -> None:
     # Step 5: BLE scan (le transport for Meshtastic devices)
     _run_step("scan", ["bluetoothctl", "--timeout", "10", "scan", "le"], timeout=15)
 
-    # Step 6: Pair with PIN (skip if no address)
-    # bluetoothctl pair prompts for a PIN interactively, so we script
-    # the full session: set the agent, pair, supply the PIN, then trust.
+    # Step 6: Pair with PIN and trust (skip if no address)
     if ble_address:
-        script = (
-            f"agent on\n"
-            f"default-agent\n"
-            f"pair {ble_address}\n"
-            f"{ble_pin}\n"
-            f"trust {ble_address}\n"
-            f"exit\n"
-        )
-        _run_step(
-            "pair and trust",
-            ["bluetoothctl"],
-            timeout=30,
-            stdin_text=script,
-        )
+        _pair_with_pin(ble_address, ble_pin)
 
     logger.info("BLE adapter reset sequence complete")
+
+
+def _pair_with_pin(ble_address: str, ble_pin: str) -> None:
+    """Pair and trust a BLE device using pexpect to handle the interactive PIN prompt."""
+    import pexpect
+
+    logger.info("Pairing with %s (PIN: %s)", ble_address, ble_pin)
+    try:
+        child = pexpect.spawn("bluetoothctl", encoding="utf-8", timeout=30)
+        child.expect(r"#|$")
+
+        # Register agent
+        child.sendline("agent on")
+        child.expect(r"Agent registered|Agent is already registered")
+
+        child.sendline("default-agent")
+        child.expect(r"Default agent request successful")
+
+        # Pair
+        child.sendline(f"pair {ble_address}")
+
+        # Wait for PIN prompt or success
+        index = child.expect([
+            r"Enter passkey",       # PIN prompt
+            r"Passkey",             # Passkey display/confirm
+            r"Pairing successful",  # Already worked without PIN
+            r"Failed to pair",      # Pairing failed
+            r"not available",       # Device not found
+            pexpect.TIMEOUT,
+        ], timeout=20)
+
+        if index == 0 or index == 1:
+            child.sendline(ble_pin)
+            child.expect([r"Pairing successful", r"Failed", pexpect.TIMEOUT], timeout=15)
+            logger.info("PIN sent for pairing")
+        elif index == 2:
+            logger.info("Pairing successful (no PIN required)")
+        elif index == 3:
+            logger.warning("Pairing failed")
+        elif index == 4:
+            logger.warning("Device not available for pairing")
+        else:
+            logger.warning("Pairing timed out")
+
+        # Trust
+        child.sendline(f"trust {ble_address}")
+        child.expect([r"trust succeeded", r"Failed", pexpect.TIMEOUT], timeout=10)
+
+        child.sendline("exit")
+        child.close()
+        logger.info("Pair and trust complete")
+    except pexpect.exceptions.ExceptionPexpect:
+        logger.exception("Error during BLE pairing")
 
 
 def _run_step(
@@ -63,13 +101,11 @@ def _run_step(
     *,
     timeout: int,
     fatal: bool = False,
-    stdin_text: str | None = None,
 ) -> subprocess.CompletedProcess | None:
     """Run a subprocess step, logging output and handling errors."""
     try:
         result = subprocess.run(
-            cmd, check=False, capture_output=True, text=True, timeout=timeout,
-            input=stdin_text,
+            cmd, check=False, capture_output=True, text=True, timeout=timeout
         )
         logger.debug(
             "BLE reset [%s] rc=%d stdout=%s stderr=%s",
