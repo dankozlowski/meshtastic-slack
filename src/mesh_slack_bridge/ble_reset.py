@@ -32,8 +32,8 @@ def reset_and_pair(ble_address: str | None) -> None:
     # Step 4: Power on
     _run_step("power on", ["bluetoothctl", "power", "on"], timeout=10)
 
-    # Step 5: Scan
-    _run_step("scan", ["bluetoothctl", "--timeout", "10", "scan", "on"], timeout=15)
+    # Step 5: BLE scan (le transport for Meshtastic devices)
+    _run_step("scan", ["bluetoothctl", "--timeout", "10", "scan", "le"], timeout=15)
 
     # Step 6: Pair (skip if no address)
     if ble_address:
