@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 
+from .ble_reset import reset_and_pair
 from .config import BridgeConfig
 from .formatting import MeshMessage, SlackMessage, mesh_to_slack, slack_to_mesh
 from .mesh_client import MeshClient
@@ -45,6 +46,10 @@ class Bridge:
             logger.exception("Failed to send to mesh")
 
     def run(self):
+        # Optionally reset BLE adapter before first connection
+        if self.config.ble_reset_on_connect and self.config.connection_type == "ble":
+            reset_and_pair(self.config.ble_address)
+
         # Connect to Meshtastic (retries internally)
         self.mesh.connect()
 
