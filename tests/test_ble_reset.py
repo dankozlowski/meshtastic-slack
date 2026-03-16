@@ -19,9 +19,10 @@ def _fail(cmd, **kwargs):
 class TestResetAndPairWithAddress:
     """When a BLE address is provided, all steps should run."""
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
-    def test_calls_commands_in_order(self, mock_run, mock_sleep):
+    def test_calls_commands_in_order(self, mock_run, mock_sleep, mock_pair):
         reset_and_pair("AA:BB:CC:DD:EE:FF")
 
         commands = [c.args[0] for c in mock_run.call_args_list]
@@ -30,26 +31,22 @@ class TestResetAndPairWithAddress:
             ["hciconfig", "hci0", "reset"],
             ["bluetoothctl", "power", "on"],
             ["bluetoothctl", "--timeout", "10", "scan", "le"],
-            ["bluetoothctl"],  # pair+trust scripted session
         ]
         mock_sleep.assert_called_once_with(2)
+        mock_pair.assert_called_once_with("AA:BB:CC:DD:EE:FF", "123456")
 
-        # Verify the scripted pair+trust session sends PIN via stdin
-        pair_call = mock_run.call_args_list[4]
-        assert "AA:BB:CC:DD:EE:FF" in pair_call.kwargs["input"]
-        assert "123456" in pair_call.kwargs["input"]
-
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
-    def test_custom_pin(self, mock_run, _mock_sleep):
+    def test_custom_pin(self, mock_run, _mock_sleep, mock_pair):
         reset_and_pair("AA:BB:CC:DD:EE:FF", ble_pin="999999")
 
-        pair_call = mock_run.call_args_list[4]
-        assert "999999" in pair_call.kwargs["input"]
+        mock_pair.assert_called_once_with("AA:BB:CC:DD:EE:FF", "999999")
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
-    def test_passes_subprocess_kwargs(self, mock_run, _mock_sleep):
+    def test_passes_subprocess_kwargs(self, mock_run, _mock_sleep, _mock_pair):
         reset_and_pair("AA:BB:CC:DD:EE:FF")
 
         for c in mock_run.call_args_list:
@@ -62,9 +59,10 @@ class TestResetAndPairWithAddress:
 class TestResetAndPairAutoDetect:
     """When ble_address is None, address-dependent steps are skipped."""
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run", side_effect=_ok)
-    def test_skips_address_steps(self, mock_run, _mock_sleep):
+    def test_skips_address_steps(self, mock_run, _mock_sleep, mock_pair):
         reset_and_pair(None)
 
         commands = [c.args[0] for c in mock_run.call_args_list]
@@ -73,14 +71,16 @@ class TestResetAndPairAutoDetect:
             ["bluetoothctl", "power", "on"],
             ["bluetoothctl", "--timeout", "10", "scan", "le"],
         ]
+        mock_pair.assert_not_called()
 
 
 class TestResetAndPairErrorHandling:
     """Error handling: adapter reset is fatal, other failures are not."""
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run")
-    def test_adapter_reset_failure_raises(self, mock_run, _mock_sleep):
+    def test_adapter_reset_failure_raises(self, mock_run, _mock_sleep, _mock_pair):
         def side_effect(cmd, **kwargs):
             if cmd[0] == "hciconfig":
                 return _fail(cmd)
@@ -91,9 +91,10 @@ class TestResetAndPairErrorHandling:
         with pytest.raises(RuntimeError, match="BLE adapter reset failed"):
             reset_and_pair("AA:BB:CC:DD:EE:FF")
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run")
-    def test_remove_failure_continues(self, mock_run, _mock_sleep):
+    def test_remove_failure_continues(self, mock_run, _mock_sleep, _mock_pair):
         def side_effect(cmd, **kwargs):
             if "remove" in cmd:
                 return _fail(cmd)
@@ -104,22 +105,10 @@ class TestResetAndPairErrorHandling:
         # Should not raise
         reset_and_pair("AA:BB:CC:DD:EE:FF")
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run")
-    def test_pair_failure_continues(self, mock_run, _mock_sleep):
-        def side_effect(cmd, **kwargs):
-            if "pair" in cmd:
-                return _fail(cmd)
-            return _ok(cmd)
-
-        mock_run.side_effect = side_effect
-
-        # Should not raise
-        reset_and_pair("AA:BB:CC:DD:EE:FF")
-
-    @patch("mesh_slack_bridge.ble_reset.time.sleep")
-    @patch("mesh_slack_bridge.ble_reset.subprocess.run")
-    def test_timeout_expired_continues(self, mock_run, _mock_sleep):
+    def test_timeout_expired_continues(self, mock_run, _mock_sleep, _mock_pair):
         def side_effect(cmd, **kwargs):
             if "scan" in cmd:
                 raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout", 10))
@@ -130,9 +119,10 @@ class TestResetAndPairErrorHandling:
         # Should not raise — scan timeout is non-fatal
         reset_and_pair("AA:BB:CC:DD:EE:FF")
 
+    @patch("mesh_slack_bridge.ble_reset._pair_with_pin")
     @patch("mesh_slack_bridge.ble_reset.time.sleep")
     @patch("mesh_slack_bridge.ble_reset.subprocess.run")
-    def test_adapter_reset_timeout_raises(self, mock_run, _mock_sleep):
+    def test_adapter_reset_timeout_raises(self, mock_run, _mock_sleep, _mock_pair):
         def side_effect(cmd, **kwargs):
             if cmd[0] == "hciconfig":
                 raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout", 10))
