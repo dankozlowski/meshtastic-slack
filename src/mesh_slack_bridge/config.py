@@ -12,6 +12,7 @@ class BridgeConfig:
     connection_type: str = "serial"  # "serial" or "ble"
     serial_port: str | None = None
     ble_address: str | None = None  # BLE MAC address or device name; null = auto-detect
+    ble_pin: str = "123456"  # PIN for BLE pairing (Meshtastic default: 123456)
     mesh_channel: int = 0
 
     # Slack

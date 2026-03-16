@@ -48,7 +48,7 @@ class Bridge:
     def run(self):
         # Optionally reset BLE adapter before first connection
         if self.config.ble_reset_on_connect and self.config.connection_type == "ble":
-            reset_and_pair(self.config.ble_address)
+            reset_and_pair(self.config.ble_address, self.config.ble_pin)
 
         # Connect to Meshtastic (retries internally)
         self.mesh.connect()
